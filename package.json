@@ -4,14 +4,22 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "db:setup": "ts-node scripts/create-db.ts && npx prisma migrate dev --name init && npx prisma generate && ts-node scripts/seed.ts",
+    "postinstall": "npx prisma generate",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:seed": "ts-node scripts/seed.ts",
     "test": "jest",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -30,6 +38,7 @@
     "create-jest": "^30.3.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
+    "prisma": "^7.5.0",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

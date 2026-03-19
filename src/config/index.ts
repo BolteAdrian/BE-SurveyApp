@@ -3,14 +3,36 @@ dotenv.config();
 
 interface Config {
   port: number;
-  databaseUrl: string;
+  database: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    name: string;
+    url: string;
+  };
   jwtSecret: string;
   defaultLang: string;
 }
 
+const dbUser = process.env.DB_USER || "postgres";
+const dbPassword = process.env.DB_PASSWORD || "";
+const dbHost = process.env.DB_HOST || "localhost";
+const dbPort = Number(process.env.DB_PORT) || 5432;
+const dbName = process.env.DB_NAME || "surveyapp";
+
+const dbUrl = `postgresql://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
+
 const config: Config = {
   port: Number(process.env.PORT) || 4000,
-  databaseUrl: process.env.DATABASE_URL || "postgresql://localhost:5432/surveyapp",
+  database: {
+    host: dbHost,
+    port: dbPort,
+    user: dbUser,
+    password: dbPassword,
+    name: dbName,
+    url: dbUrl,
+  },
   jwtSecret: process.env.JWT_SECRET || "supersecretkey",
   defaultLang: process.env.DEFAULT_LANG || "en",
 };

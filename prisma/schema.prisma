@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  surveys    Survey[]
+  emailLists EmailList[]
+}
+
+model Survey {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  slug         String       @unique
+  status       String
+  createdAt    DateTime     @default(now())
+  ownerId      String
+  owner        User         @relation(fields: [ownerId], references: [id])
+  questions    Question[]
+  invitations  Invitation[]
+  responses    Response[]
+}
+
+model Question {
+  id            String          @id @default(uuid())
+  surveyId      String
+  survey        Survey          @relation(fields: [surveyId], references: [id])
+  title         String
+  type          String
+  required      Boolean         @default(false)
+  maxSelections Int?            // optional, only for choice
+  maxLength     Int?            // optional, only for text
+  order         Int?
+  options       QuestionOption[]
+  answersChoice AnswerChoice[]
+  answersText   AnswerText[]
+}
+
+model QuestionOption {
+  id            String         @id @default(uuid())
+  questionId    String
+  question      Question       @relation(fields: [questionId], references: [id])
+  label         String
+  order         Int
+  answerChoices AnswerChoice[]
+}
+
+model EmailList {
+  id            String         @id @default(uuid())
+  ownerId       String
+  owner         User           @relation(fields: [ownerId], references: [id])
+  name          String
+  emailContacts EmailContact[]
+}
+
+model EmailContact {
+  id            String       @id @default(uuid())
+  emailListId   String
+  emailList     EmailList    @relation(fields: [emailListId], references: [id])
+  email         String
+  name          String
+  invitations   Invitation[]
+}
+
+model Invitation {
+  id         String        @id @default(uuid())
+  surveyId   String
+  survey     Survey        @relation(fields: [surveyId], references: [id])
+  contactId  String
+  contact    EmailContact  @relation(fields: [contactId], references: [id])
+  tokenHash  String
+  sentAt     DateTime
+  response   Response?
+}
+
+model Response {
+  id           String        @id @default(uuid())
+  surveyId     String
+  survey       Survey        @relation(fields: [surveyId], references: [id])
+  invitationId String        @unique
+  invitation   Invitation    @relation(fields: [invitationId], references: [id])
+  submittedAt  DateTime
+  answersChoice AnswerChoice[]
+  answersText   AnswerText[]
+}
+
+model AnswerChoice {
+  id         String          @id @default(uuid())
+  responseId String
+  response   Response        @relation(fields: [responseId], references: [id])
+  questionId String
+  question   Question        @relation(fields: [questionId], references: [id])
+  optionId   String
+  option     QuestionOption  @relation(fields: [optionId], references: [id])
+}
+
+model AnswerText {
+  id         String    @id @default(uuid())
+  responseId String
+  response   Response  @relation(fields: [responseId], references: [id])
+  questionId String
+  question   Question  @relation(fields: [questionId], references: [id])
+  textValue  String
+}
