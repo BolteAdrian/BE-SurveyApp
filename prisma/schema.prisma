@@ -6,6 +6,17 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SurveyStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum QuestionType {
+  CHOICE
+  TEXT
+}
+
 model User {
   id         String      @id @default(uuid())
   name       String
@@ -19,8 +30,10 @@ model Survey {
   title        String
   description  String?
   slug         String       @unique
-  status       String
+  status       SurveyStatus @default(DRAFT)
   createdAt    DateTime     @default(now())
+  publishedAt  DateTime?
+  closedAt     DateTime?
   ownerId      String
   owner        User         @relation(fields: [ownerId], references: [id])
   questions    Question[]
@@ -31,12 +44,12 @@ model Survey {
 model Question {
   id            String          @id @default(uuid())
   surveyId      String
-  survey        Survey          @relation(fields: [surveyId], references: [id])
+  survey        Survey          @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   title         String
-  type          String
+  type          QuestionType
   required      Boolean         @default(false)
-  maxSelections Int?            // optional, only for choice
-  maxLength     Int?            // optional, only for text
+  maxSelections Int?
+  maxLength     Int?            @default(1000)
   order         Int?
   options       QuestionOption[]
   answersChoice AnswerChoice[]
@@ -46,7 +59,7 @@ model Question {
 model QuestionOption {
   id            String         @id @default(uuid())
   questionId    String
-  question      Question       @relation(fields: [questionId], references: [id])
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
   label         String
   order         Int
   answerChoices AnswerChoice[]
@@ -57,36 +70,45 @@ model EmailList {
   ownerId       String
   owner         User           @relation(fields: [ownerId], references: [id])
   name          String
+  createdAt     DateTime       @default(now())
   emailContacts EmailContact[]
 }
 
 model EmailContact {
   id            String       @id @default(uuid())
   emailListId   String
-  emailList     EmailList    @relation(fields: [emailListId], references: [id])
+  emailList     EmailList    @relation(fields: [emailListId], references: [id], onDelete: Cascade)
   email         String
-  name          String
+  name          String?
+  createdAt     DateTime     @default(now())
   invitations   Invitation[]
 }
 
 model Invitation {
-  id         String        @id @default(uuid())
-  surveyId   String
-  survey     Survey        @relation(fields: [surveyId], references: [id])
-  contactId  String
-  contact    EmailContact  @relation(fields: [contactId], references: [id])
-  tokenHash  String
-  sentAt     DateTime
-  response   Response?
+  id              String        @id @default(uuid())
+  surveyId        String
+  survey          Survey        @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  contactId       String
+  contact         EmailContact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tokenHash       String
+  sentAt          DateTime
+  emailOpenedAt   DateTime?
+  surveyOpenedAt  DateTime?
+  bouncedAt       DateTime?
+  submittedAt     DateTime?
+  response        Response?
+
+  @@unique([surveyId, contactId])
+  @@index([tokenHash])
 }
 
 model Response {
-  id           String        @id @default(uuid())
-  surveyId     String
-  survey       Survey        @relation(fields: [surveyId], references: [id])
-  invitationId String        @unique
-  invitation   Invitation    @relation(fields: [invitationId], references: [id])
-  submittedAt  DateTime
+  id            String        @id @default(uuid())
+  surveyId      String
+  survey        Survey        @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  invitationId  String        @unique
+  invitation    Invitation    @relation(fields: [invitationId], references: [id])
+  submittedAt   DateTime      @default(now())
   answersChoice AnswerChoice[]
   answersText   AnswerText[]
 }
@@ -94,18 +116,18 @@ model Response {
 model AnswerChoice {
   id         String          @id @default(uuid())
   responseId String
-  response   Response        @relation(fields: [responseId], references: [id])
+  response   Response        @relation(fields: [responseId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question        @relation(fields: [questionId], references: [id])
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: NoAction)
   optionId   String
-  option     QuestionOption  @relation(fields: [optionId], references: [id])
+  option     QuestionOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
 }
 
 model AnswerText {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   responseId String
-  response   Response  @relation(fields: [responseId], references: [id])
+  response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question  @relation(fields: [questionId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id], onDelete: NoAction)
   textValue  String
 }

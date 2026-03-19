@@ -30,13 +30,13 @@ async function main() {
       title: "Demo Survey",
       description: "This is a demo survey for testing",
       slug: "demo-survey",
-      status: "draft",
+      status: "DRAFT",
       ownerId: user.id,
       questions: {
         create: [
           {
             title: "What is your favorite color?",
-            type: "choice",
+            type: "CHOICE",
             required: true,
             maxSelections: 2,
             order: 1,
@@ -50,7 +50,7 @@ async function main() {
           },
           {
             title: "Any additional comments?",
-            type: "text",
+            type: "TEXT",
             required: false,
             maxLength: 500,
             order: 2,
@@ -109,7 +109,7 @@ async function main() {
 
     // answers for choice question
     const choiceQuestion = await prisma.question.findFirst({
-      where: { surveyId: survey.id, type: "choice" },
+      where: { surveyId: survey.id, type: "CHOICE" },
       include: { options: true },
     });
 
@@ -132,7 +132,7 @@ async function main() {
 
     // answer for text question
     const textQuestion = await prisma.question.findFirst({
-      where: { surveyId: survey.id, type: "text" },
+      where: { surveyId: survey.id, type: "TEXT" },
     });
 
     if (textQuestion) {
