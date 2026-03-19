@@ -12,18 +12,19 @@ export const publicController = {
    */
   getSurvey: async (req: Request, res: Response) => {
     const { slug } = req.params;
-    const token = String(req.query.t || '');
+    const token = String(req.query.t || "");
 
-    const result = await publicService.getSurveyPage(slug as string, token);
+    try {
+      const result = await publicService.getSurveyPage(slug as string, token);
 
-    if (result.error) {
-      return res.status(200).json({ message: result.error });
+      if (result.error) return res.status(200).json({ message: result.error });
+
+      // mark survey opened
+      await trackingService.markSurveyOpened(token);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
-
-    // mark survey opened
-    await trackingService.markSurveyOpened(token);
-
-    res.json(result);
   },
 
   /**
@@ -31,22 +32,23 @@ export const publicController = {
    * POST /api/public/surveys/:slug/responses?t=token
    */
   submitResponse: async (req: Request, res: Response) => {
-    try {
-      const { slug } = req.params;
-      const token = String(req.query.t || '');
+    const { slug } = req.params;
+    const token = String(req.query.t || "");
+    const answers = req.body.answers;
 
-      const response = await publicService.submitResponse(
+    try {
+      const result = await publicService.submitResponse(
         slug as string,
         token,
-        req.body.answers
+        answers,
       );
 
-      res.json(response);
-    } catch (err: any) {
-      if (err.status === 410) {
-        return res.status(410).json({ error: 'SURVEY_CLOSED' });
-      }
+      if (result.error) return res.status(400).json(result);
 
+      res.json(result);
+    } catch (err: any) {
+      if (err.status === 410)
+        return res.status(410).json({ error: "SURVEY_CLOSED" });
       res.status(400).json({ error: err.message });
     }
   },
