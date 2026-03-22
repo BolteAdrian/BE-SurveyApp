@@ -29,6 +29,7 @@
     "i18next": "^25.8.19",
     "i18next-fs-backend": "^2.6.1",
     "i18next-http-middleware": "^3.9.2",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0"
   },
@@ -37,6 +38,7 @@
     "@types/express": "^5.0.6",
     "@types/i18next": "^12.1.0",
     "@types/jest": "^30.0.0",
+    "@types/json2csv": "^5.0.7",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.18.0",
     "create-jest": "^30.3.0",

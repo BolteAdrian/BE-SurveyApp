@@ -1,7 +1,7 @@
 
-import { PrismaClient, SurveyStatus } from '@prisma/client';
+import { SurveyStatus } from '@prisma/client';
+import prisma from '../db/prisma';
 import crypto from 'crypto';
-const prisma = new PrismaClient();
 
 /**
  * Validate token for a survey invitation

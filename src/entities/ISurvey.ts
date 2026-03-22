@@ -1,7 +1,7 @@
 import { SurveyStatus } from "../utils/constants";
 
 export interface ISurvey {
-  id: string;
+  id?: string;
   ownerId: string;
   title: string;
   description?: string;

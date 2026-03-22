@@ -1,6 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
+import { IQuestionWithOptions } from "../entities/IQuestion";
+import { ISurvey } from "../entities/ISurvey";
 import { SurveyStatus } from "../utils/constants";
-const prisma = new PrismaClient();
 
 /**
  * Service for handling Surveys.
@@ -9,17 +10,57 @@ export const surveyService = {
   /**
    * Create a new survey in draft status.
    */
-  createSurvey: async (title: string, description?: string, slug?: string, owner?: string) => {
-    return prisma.survey.create({
-      data: { 
-        title, 
-        description, 
-        slug: slug as string, 
-        status: SurveyStatus.Draft, 
-        owner: {
-          connect: { id: owner }
+  createSurvey: async (
+    title: string,
+    slug: string,
+    ownerId: string,
+    questions: IQuestionWithOptions[],
+    description?: string,
+  ) => {
+    const data: ISurvey = {
+      title,
+      description,
+      slug,
+      status: SurveyStatus.Draft,
+      ownerId,
+      createdAt: new Date(),
+      publishedAt: null,
+      closedAt: null,
+    };
+
+    const survey = await prisma.survey.create({ data });
+
+    if (questions?.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const q of questions) {
+          const question = await tx.question.create({
+            data: {
+              title: q.title,
+              type: q.type,
+              required: q.required ?? false,
+              order: q.order,
+              surveyId: survey.id,
+              maxLength: q.maxLength,
+              maxSelections: q.maxSelections,
+            },
+          });
+
+          if (q.options?.length > 0) {
+            const optionsData = q.options.map((o) => ({
+              label: o.label,
+              order: o.order,
+              questionId: question.id,
+            }));
+
+            await tx.option.createMany({ data: optionsData });
+          }
         }
-      },
+      });
+    }
+
+    return prisma.survey.findUnique({
+      where: { id: survey.id },
+      include: { questions: true },
     });
   },
 
@@ -35,35 +76,6 @@ export const surveyService = {
     if (survey.status !== SurveyStatus.Draft)
       throw new Error("Cannot edit a published/closed survey");
     return prisma.survey.update({ where: { id }, data });
-  },
-
-  /**
-   * Add question to a survey (only if draft)
-   */
-  addQuestion: async (surveyId: string, questionData: any) => {
-    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
-    if (!survey || survey.status !== SurveyStatus.Draft)
-      throw new Error("Survey not editable");
-    return prisma.question.create({
-      data: { ...questionData, surveyId },
-    });
-  },
-
-  /**
-   * Update question (only if survey draft)
-   */
-  updateQuestion: async (
-    surveyId: string,
-    questionId: string,
-    questionData: any,
-  ) => {
-    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
-    if (!survey || survey.status !== SurveyStatus.Draft)
-      throw new Error("Survey not editable");
-    return prisma.question.update({
-      where: { id: questionId },
-      data: questionData,
-    });
   },
 
   /**
@@ -87,5 +99,176 @@ export const surveyService = {
       where: { id: surveyId },
       data: { status: SurveyStatus.Closed },
     });
+  },
+
+  /**
+   * Get all surveys with total questions count and optional status filter
+   */
+  getSurveys: async (status?: SurveyStatus) => {
+    const where = status ? { status } : {};
+
+    return prisma.survey.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            questions: true,
+          },
+        },
+      },
+    });
+  },
+
+  /**
+   * Get a single survey by id, with questions
+   */
+  getSurvey: async (id: string) => {
+    return prisma.survey.findUnique({
+      where: { id },
+      include: {
+        questions: {
+          include: { options: true },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+  },
+
+  /**
+   * Delete a survey (only if draft)
+   */
+  deleteSurvey: async (surveyId: string) => {
+    const survey = await prisma.survey.findUnique({
+      where: { id: surveyId },
+    });
+
+    if (!survey) {
+      throw new Error("Survey not found");
+    }
+
+    if (survey.status !== SurveyStatus.Draft) {
+      throw new Error("Only draft surveys can be deleted");
+    }
+
+    return prisma.$transaction([
+      // answers
+      prisma.answerChoice.deleteMany({
+        where: { question: { surveyId } },
+      }),
+      prisma.answerText.deleteMany({
+        where: { question: { surveyId } },
+      }),
+
+      // options
+      prisma.option.deleteMany({
+        where: { question: { surveyId } },
+      }),
+
+      // questions
+      prisma.question.deleteMany({
+        where: { surveyId },
+      }),
+
+      // survey
+      prisma.survey.delete({
+        where: { id: surveyId },
+      }),
+    ]);
+  },
+
+  /**
+   * Get a single question with options
+   */
+  getQuestion: async (surveyId: string, questionId: string) => {
+    const question = await prisma.question.findUnique({
+      where: { id: questionId },
+      include: {
+        options: {
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (!question || question.surveyId !== surveyId) {
+      throw new Error("Question not found in this survey");
+    }
+
+    return question;
+  },
+
+  /**
+   * Add question to a survey (only if draft)
+   */
+  addQuestion: async (surveyId: string, questionData: any) => {
+    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+    if (!survey || survey.status !== SurveyStatus.Draft)
+      throw new Error("Survey not editable");
+    return prisma.question.create({
+      data: { ...questionData, surveyId },
+    });
+  },
+
+  /**
+   * Update question (only if survey draft)
+   */
+  updateQuestion: async (surveyId: string, questionId: string, data: any) => {
+    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+
+    if (!survey || survey.status !== SurveyStatus.Draft)
+      throw new Error("Survey not editable");
+
+    return prisma.question.update({
+      where: { id: questionId },
+      data: {
+        title: data.title,
+        type: data.type,
+        required: data.required,
+        maxSelections: data.maxSelections,
+        maxLength: data.maxLength,
+        order: data.order,
+        options:
+          data.type === "CHOICE"
+            ? {
+                deleteMany: {},
+                create: data.options,
+              }
+            : undefined,
+      },
+      include: {
+        options: true,
+      },
+    });
+  },
+
+  /**
+   * Delete a question
+   * @param surveyId
+   * @param questionId
+   * @returns
+   */
+  deleteQuestion: async (surveyId: string, questionId: string) => {
+    const survey = await prisma.survey.findUnique({
+      where: { id: surveyId },
+    });
+
+    if (!survey || survey.status !== SurveyStatus.Draft) {
+      throw new Error("Survey not editable");
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id: questionId },
+    });
+
+    if (!question || question.surveyId !== surveyId) {
+      throw new Error("Question not found in this survey");
+    }
+
+    return prisma.$transaction([
+      prisma.option.deleteMany({ where: { questionId } }),
+      prisma.answerChoice.deleteMany({ where: { questionId } }),
+      prisma.answerText.deleteMany({ where: { questionId } }),
+      prisma.question.delete({ where: { id: questionId } }),
+    ]);
   },
 };

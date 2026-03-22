@@ -52,12 +52,12 @@ model Question {
   maxSelections Int?
   maxLength     Int?            @default(1000)
   order         Int?
-  options       QuestionOption[]
+  options       Option[]
   answersChoice AnswerChoice[]
   answersText   AnswerText[]
 }
 
-model QuestionOption {
+model Option {
   id            String         @id @default(uuid())
   questionId    String
   question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -121,7 +121,7 @@ model AnswerChoice {
   questionId String
   question   Question        @relation(fields: [questionId], references: [id], onDelete: NoAction)
   optionId   String
-  option     QuestionOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  option     Option  @relation(fields: [optionId], references: [id], onDelete: Cascade)
 }
 
 model AnswerText {

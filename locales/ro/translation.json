@@ -1,0 +1,46 @@
+{
+  "SURVEY": {
+    "TITLE": "Titlu",
+    "CREATE_FAILED": "Eșec la crearea sondajului",
+    "UPDATE_FAILED": "Eșec la actualizarea sondajului",
+    "DELETE_FAILED": "Eșec la ștergerea sondajului",
+    "DELETED": "Sondaj șters cu succes",
+    "FETCH_FAILED": "Eșec la preluarea sondajelor",
+    "NOT_FOUND": "Sondajul nu a fost găsit",
+    "QUESTION_NOT_FOUND": "Întrebarea nu a fost găsită",
+    "QUESTION_FETCH_FAILED": "Eșec la preluarea întrebării",
+    "QUESTION_ADD_FAILED": "Eșec la adăugarea întrebării",
+    "QUESTION_UPDATE_FAILED": "Eșec la actualizarea întrebării",
+    "QUESTION_DELETED": "Întrebarea a fost ștearsă",
+    "QUESTION_DELETE_FAILED": "Eșec la ștergerea întrebării",
+    "PUBLISH_FAILED": "Eșec la publicarea sondajului",
+    "CLOSE_FAILED": "Eșec la închiderea sondajului",
+    "CLOSED": "Sondajul este închis.",
+    "RESPONSE_SUBMIT_FAILED": "Trimiterea răspunsului a eșuat"
+  },
+  "AUTH": {
+    "REGISTER_FAILED": "Eșec la înregistrarea utilizatorului",
+    "LOGIN_FAILED": "Eșec la autentificare",
+    "INVALID_CREDENTIALS": "Date de autentificare invalide",
+    "UNAUTHORIZED": "Neautorizat"
+  },
+  "INVITATION": {
+    "SEND_FAILED": "Trimiterea invitațiilor a eșuat.",
+    "LIST_FAILED": "Preluarea invitațiilor a eșuat.",
+    "PREVIEW_FAILED": "Previzualizarea invitațiilor a eșuat."
+  },
+  "RESULT": {
+    "SUMMARY_FETCH_FAILED": "Preluarea rezumatului sondajului a eșuat.",
+    "QUESTION_STATS_FETCH_FAILED": "Preluarea statisticilor întrebărilor a eșuat.",
+    "COMMENTS_FETCH_FAILED": "Preluarea comentariilor a eșuat.",
+    "EXPORT_FAILED": "Exportarea rezultatelor a eșuat."
+  },
+  "TRACKING": {
+    "TOKEN_MISSING": "Lipsă token pentru tracking.",
+    "EMAIL_OPEN_FAILED": "Marcarea email-ului ca deschis a eșuat."
+  },
+  "WEBHOOK": {
+    "PAYLOAD_MISSING": "Payload-ul webhook-ului lipsește.",
+    "SES_FAILED": "Procesarea webhook-ului SES a eșuat."
+  }
+}

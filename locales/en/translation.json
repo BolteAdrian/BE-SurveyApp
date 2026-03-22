@@ -1,0 +1,46 @@
+{
+  "SURVEY": {
+    "TITLE": "Title",
+    "CREATE_FAILED": "Failed to create survey",
+    "UPDATE_FAILED": "Failed to update survey",
+    "DELETE_FAILED": "Failed to delete survey",
+    "DELETED": "Survey deleted successfully",
+    "FETCH_FAILED": "Failed to fetch surveys",
+    "NOT_FOUND": "Survey not found",
+    "QUESTION_NOT_FOUND": "Question not found",
+    "QUESTION_FETCH_FAILED": "Failed to fetch question",
+    "QUESTION_ADD_FAILED": "Failed to add question",
+    "QUESTION_UPDATE_FAILED": "Failed to update question",
+    "QUESTION_DELETED": "Question deleted",
+    "QUESTION_DELETE_FAILED": "Failed to delete question",
+    "PUBLISH_FAILED": "Failed to publish survey",
+    "CLOSE_FAILED": "Failed to close survey",
+    "CLOSED": "Survey is closed.",
+    "RESPONSE_SUBMIT_FAILED": "Submitting response failed."
+  },
+  "AUTH": {
+    "REGISTER_FAILED": "Failed to register user",
+    "LOGIN_FAILED": "Failed to login",
+    "INVALID_CREDENTIALS": "Invalid credentials",
+    "UNAUTHORIZED": "Unauthorized"
+  },
+  "INVITATION": {
+    "SEND_FAILED": "Sending invitations failed.",
+    "LIST_FAILED": "Fetching invitations failed.",
+    "PREVIEW_FAILED": "Previewing invitations failed."
+  },
+  "RESULT": {
+    "SUMMARY_FETCH_FAILED": "Fetching survey summary failed.",
+    "QUESTION_STATS_FETCH_FAILED": "Fetching question statistics failed.",
+    "COMMENTS_FETCH_FAILED": "Fetching comments failed.",
+    "EXPORT_FAILED": "Exporting results failed."
+  },
+  "TRACKING": {
+    "TOKEN_MISSING": "Tracking token missing.",
+    "EMAIL_OPEN_FAILED": "Marking email as opened failed."
+  },
+  "WEBHOOK": {
+    "PAYLOAD_MISSING": "Webhook payload missing.",
+    "SES_FAILED": "Processing SES webhook failed."
+  }
+}

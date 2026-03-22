@@ -1,10 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../db/prisma';
 import { SurveyStatus } from "../utils/constants";
 import { trackingService } from "./trackingService";
 import { validateAnswers, validateToken } from "../utils/validators";
-import crypto from "crypto";
-
-const prisma = new PrismaClient();
 
 /**
  * Service for public survey access and submissions

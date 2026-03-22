@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+
 import { surveyService } from '../../services/surveyService';
 import { SurveyStatus } from '../../utils/constants';
+import { PrismaClient } from "@prisma/client";
 
 jest.mock('@prisma/client', () => {
   const mPrisma = {
@@ -8,6 +9,7 @@ jest.mock('@prisma/client', () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      findMany: jest.fn(),
     },
     question: {
       create: jest.fn(),
@@ -31,6 +33,7 @@ const prismaMock = prisma as unknown as {
     create: jest.Mock;
     findUnique: jest.Mock;
     update: jest.Mock;
+    findMany: jest.Mock;
   };
   question: {
     create: jest.Mock;
@@ -224,6 +227,34 @@ describe('surveyService', () => {
       });
 
       expect(result.status).toBe(SurveyStatus.Closed);
+    });
+  });
+
+  describe('getSurveys', () => {
+    it('should return all surveys when no status filter', async () => {
+      const surveys = [{ id: '1', title: 'Test 1' }, { id: '2', title: 'Test 2' }];
+      prismaMock.survey.findMany.mockResolvedValue(surveys);
+
+      const result = await surveyService.getSurveys();
+
+      expect(prismaMock.survey.findMany).toHaveBeenCalledWith({
+        where: {},
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual(surveys);
+    });
+
+    it('should return filtered surveys by status', async () => {
+      const surveys = [{ id: '1', title: 'Draft 1', status: SurveyStatus.Draft }];
+      prismaMock.survey.findMany.mockResolvedValue(surveys);
+
+      const result = await surveyService.getSurveys(SurveyStatus.Draft);
+
+      expect(prismaMock.survey.findMany).toHaveBeenCalledWith({
+        where: { status: SurveyStatus.Draft },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual(surveys);
     });
   });
 });

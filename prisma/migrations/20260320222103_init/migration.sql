@@ -44,13 +44,13 @@ CREATE TABLE "Question" (
 );
 
 -- CreateTable
-CREATE TABLE "QuestionOption" (
+CREATE TABLE "Option" (
     "id" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
 
-    CONSTRAINT "QuestionOption_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Option_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -141,7 +141,7 @@ ALTER TABLE "Survey" ADD CONSTRAINT "Survey_ownerId_fkey" FOREIGN KEY ("ownerId"
 ALTER TABLE "Question" ADD CONSTRAINT "Question_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "QuestionOption" ADD CONSTRAINT "QuestionOption_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Option" ADD CONSTRAINT "Option_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmailList" ADD CONSTRAINT "EmailList_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -168,7 +168,7 @@ ALTER TABLE "AnswerChoice" ADD CONSTRAINT "AnswerChoice_responseId_fkey" FOREIGN
 ALTER TABLE "AnswerChoice" ADD CONSTRAINT "AnswerChoice_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnswerChoice" ADD CONSTRAINT "AnswerChoice_optionId_fkey" FOREIGN KEY ("optionId") REFERENCES "QuestionOption"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnswerChoice" ADD CONSTRAINT "AnswerChoice_optionId_fkey" FOREIGN KEY ("optionId") REFERENCES "Option"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnswerText" ADD CONSTRAINT "AnswerText_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "Response"("id") ON DELETE CASCADE ON UPDATE CASCADE;

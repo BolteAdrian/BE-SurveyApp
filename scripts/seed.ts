@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, QuestionType } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import config from "../src/config";
@@ -37,7 +37,7 @@ async function main() {
         create: [
           {
             title: "What is your favorite color?",
-            type: "CHOICE",
+            type: QuestionType.CHOICE,
             required: true,
             maxSelections: 2,
             order: 1,
@@ -51,7 +51,7 @@ async function main() {
           },
           {
             title: "Any additional comments?",
-            type: "TEXT",
+            type: QuestionType.TEXT,
             required: false,
             maxLength: 500,
             order: 2,
@@ -110,7 +110,7 @@ async function main() {
 
     // answers for choice question
     const choiceQuestion = await prisma.question.findFirst({
-      where: { surveyId: survey.id, type: "CHOICE" },
+      where: { surveyId: survey.id, type: QuestionType.CHOICE },
       include: { options: true },
     });
 
@@ -133,7 +133,7 @@ async function main() {
 
     // answer for text question
     const textQuestion = await prisma.question.findFirst({
-      where: { surveyId: survey.id, type: "TEXT" },
+      where: { surveyId: survey.id, type: QuestionType.TEXT },
     });
 
     if (textQuestion) {
