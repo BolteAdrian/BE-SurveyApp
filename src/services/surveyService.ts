@@ -15,13 +15,14 @@ export const surveyService = {
     slug: string,
     ownerId: string,
     questions: IQuestionWithOptions[],
+    status: SurveyStatus,
     description?: string,
   ) => {
     const data: ISurvey = {
       title,
       description,
       slug,
-      status: SurveyStatus.Draft,
+      status: status || SurveyStatus.Draft,
       ownerId,
       createdAt: new Date(),
       publishedAt: null,

@@ -11,7 +11,7 @@ export const surveyController = {
    * @route POST /surveys
    */
   createSurvey: async (req: Request, res: Response) => {
-    const { title, description, slug, ownerId, questions } = req.body;
+    const { title, description, slug, ownerId, questions, status} = req.body;
     if (!title || !slug || !ownerId || !questions || questions.length === 0) {
       return res.status(400).json({
         error: req.t("SURVEY.CREATE_FAILED"),
@@ -23,6 +23,7 @@ export const surveyController = {
         slug,
         ownerId,
         questions,
+        status,
         description,
       );
       res.status(201).json(survey); // Created
