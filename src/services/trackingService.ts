@@ -50,7 +50,7 @@ export const trackingService = {
 
     // Safety check for survey status
     if (invitation.survey.status !== "PUBLISHED") {
-      return null; // Or handle as an object that UI can interpret as "Closed"
+      return null; 
     }
 
     if (!invitation.surveyOpenedAt) {

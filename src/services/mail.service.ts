@@ -17,7 +17,7 @@ export const mailService = {
     surveyTitle: string,
     inviteUrl: string,
   ) => {
-    // Extragem rawToken din inviteUrl (ex: ?t=ABC)
+
     const url = new URL(inviteUrl);
     const rawToken = url.searchParams.get("t");
 

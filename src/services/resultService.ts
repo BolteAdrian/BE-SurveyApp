@@ -1,7 +1,5 @@
 import prisma from "../db/prisma";
 import { IAnswerChoice } from "../entities/IAnswerChoice";
-import { IInvitation } from "../entities/IInvitation";
-import { IOption } from "../entities/IOption";
 import { QuestionType } from "../utils/constants";
 import { Parser } from "json2csv";
 
@@ -13,19 +11,36 @@ export const resultService = {
    * Summary funnel: invited → sent → email opened → survey opened → submitted → bounced
    */
   getSummary: async (surveyId: string) => {
-    const invitations = await prisma.invitation.findMany({
-      where: { surveyId },
-    });
+    const [survey, counts] = await Promise.all([
+      prisma.survey.findUnique({
+        where: { id: surveyId },
+        select: { title: true },
+      }),
+      prisma.invitation.aggregate({
+        where: { surveyId },
+        _count: {
+          _all: true,
+          sentAt: true,
+          emailOpenedAt: true,
+          surveyOpenedAt: true,
+          submittedAt: true,
+          bouncedAt: true,
+        },
+      }),
+    ]);
+
+    if (!survey) {
+      throw new Error("Survey not found");
+    }
 
     return {
-      invited: invitations.length,
-      sent: invitations.filter((i: IInvitation) => i.sentAt).length,
-      emailOpened: invitations.filter((i: IInvitation) => i.emailOpenedAt)
-        .length,
-      surveyOpened: invitations.filter((i: IInvitation) => i.surveyOpenedAt)
-        .length,
-      submitted: invitations.filter((i: IInvitation) => i.submittedAt).length,
-      bounced: invitations.filter((i: IInvitation) => i.bouncedAt).length,
+      title: survey.title,
+      invited: counts._count._all,
+      sent: counts._count.sentAt,
+      emailOpened: counts._count.emailOpenedAt,
+      surveyOpened: counts._count.surveyOpenedAt,
+      submitted: counts._count.submittedAt,
+      bounced: counts._count.bouncedAt,
     };
   },
 
