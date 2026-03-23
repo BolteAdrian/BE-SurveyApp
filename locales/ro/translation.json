@@ -42,5 +42,15 @@
   "WEBHOOK": {
     "PAYLOAD_MISSING": "Payload-ul webhook-ului lipsește.",
     "SES_FAILED": "Procesarea webhook-ului SES a eșuat."
+  },
+  "EMAIL_LIST": {
+    "FETCH_FAILED": "Eșec la preluarea listelor de email",
+    "CREATE_FAILED": "Eșec la crearea listei de email",
+    "IMPORT_INVALID": "Formatul contactelor este invalid",
+    "IMPORT_SUCCESS": "Contactele au fost importate cu succes",
+    "IMPORT_FAILED": "Eșec la importare",
+    "DELETE_FAILED": "Eșec la ștergerea listei de email",
+    "ADD_FAILED": "Eșec la adăugarea unui contact",
+    "CONTACT_DELETE_FAILED": "Eșec la ștergerea unui contact"
   }
 }

@@ -1,113 +1,115 @@
-import { PrismaClient } from '@prisma/client';
-import { trackingService } from '../../services/trackingService';
+import { trackingService } from "../../services/trackingService";
+import prisma from "../../db/prisma";
 
-jest.mock('@prisma/client', () => {
-  const mPrisma = {
+// 1. Mock the specific Prisma instance
+jest.mock("../../db/prisma", () => ({
+  __esModule: true,
+  default: {
     invitation: {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
-  };
+  },
+}));
 
-  return {
-    PrismaClient: jest.fn(() => mPrisma),
-  };
-});
+// Use a simple variable without TS annotations for the mock reference
+// This prevents the "Missing initializer" / "unexpected token" error
+const prismaMock = prisma as any;
 
-const prisma = new PrismaClient();
-
-/**
- * Fix TypeScript typing
- */
-const prismaMock = prisma as unknown as {
-  invitation: {
-    findFirst: jest.Mock;
-    update: jest.Mock;
-  };
-};
-
-describe('trackingService', () => {
+describe("trackingService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('markEmailOpened', () => {
-    it('should do nothing if invitation not found', async () => {
+  describe("markEmailOpened", () => {
+    it("should return null if no invitation is found", async () => {
       prismaMock.invitation.findFirst.mockResolvedValue(null);
 
-      await trackingService.markEmailOpened('token');
+      const result = await trackingService.markEmailOpened("token-hash");
 
+      expect(result).toBeNull();
       expect(prismaMock.invitation.update).not.toHaveBeenCalled();
     });
 
-    it('should set emailOpenedAt if null', async () => {
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-        emailOpenedAt: null,
+    it("should update emailOpenedAt if null", async () => {
+      const mockInv = { id: "inv-1", emailOpenedAt: null };
+      prismaMock.invitation.findFirst.mockResolvedValue(mockInv);
+      prismaMock.invitation.update.mockResolvedValue({
+        ...mockInv,
+        emailOpenedAt: new Date(),
       });
 
-      await trackingService.markEmailOpened('token');
+      await trackingService.markEmailOpened("token-hash");
 
       expect(prismaMock.invitation.update).toHaveBeenCalledWith({
-        where: { id: 'inv1' },
+        where: { id: "inv-1" },
         data: { emailOpenedAt: expect.any(Date) },
       });
     });
 
-    it('should NOT update if emailOpenedAt already exists', async () => {
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-        emailOpenedAt: new Date(),
+    it("should return the invitation without updating if already marked as opened", async () => {
+      const existingDate = new Date();
+      (prismaMock.invitation.findFirst as jest.Mock).mockResolvedValue({
+        id: "inv-1",
+        emailOpenedAt: existingDate,
       });
 
-      await trackingService.markEmailOpened('token');
+      const result = await trackingService.markEmailOpened("token-hash");
 
       expect(prismaMock.invitation.update).not.toHaveBeenCalled();
+      expect(result?.emailOpenedAt).toBe(existingDate);
     });
   });
 
-  describe('markSurveyOpened', () => {
-    it('should return null if invitation not found', async () => {
-      prismaMock.invitation.findFirst.mockResolvedValue(null);
+  describe("markSurveyOpened", () => {
+    const mockFullInv = {
+      id: "inv-1",
+      surveyOpenedAt: null,
+      survey: { status: "PUBLISHED", questions: [] },
+    };
 
-      const result = await trackingService.markSurveyOpened('token');
+    it("should return null if survey is not PUBLISHED", async () => {
+      prismaMock.invitation.findFirst.mockResolvedValue({
+        ...mockFullInv,
+        survey: { status: "DRAFT" },
+      });
+
+      const result = await trackingService.markSurveyOpened("token-hash");
 
       expect(result).toBeNull();
     });
 
-    it('should set surveyOpenedAt if null', async () => {
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-        surveyOpenedAt: null,
-      });
+    it("should update surveyOpenedAt and handle deep includes", async () => {
+      prismaMock.invitation.findFirst.mockResolvedValue(mockFullInv);
 
-      await trackingService.markSurveyOpened('token');
+      const result = await trackingService.markSurveyOpened("token-hash");
+
+      expect(prismaMock.invitation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.any(Object),
+        }),
+      );
 
       expect(prismaMock.invitation.update).toHaveBeenCalledWith({
-        where: { id: 'inv1' },
+        where: { id: "inv-1" },
         data: { surveyOpenedAt: expect.any(Date) },
       });
+      expect(result).toEqual(mockFullInv);
     });
 
-    it('should NOT update if surveyOpenedAt already exists', async () => {
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
+    it("should not perform a DB update if surveyOpenedAt is already set", async () => {
+      const alreadyOpened = {
+        ...mockFullInv,
         surveyOpenedAt: new Date(),
-      });
+      };
+      (prismaMock.invitation.findFirst as jest.Mock).mockResolvedValue(
+        alreadyOpened,
+      );
 
-      await trackingService.markSurveyOpened('token');
+      const result = await trackingService.markSurveyOpened("token-hash");
 
       expect(prismaMock.invitation.update).not.toHaveBeenCalled();
-    });
-
-    it('should return invitation', async () => {
-      const invitation = { id: 'inv1', surveyOpenedAt: null };
-
-      prismaMock.invitation.findFirst.mockResolvedValue(invitation);
-
-      const result = await trackingService.markSurveyOpened('token');
-
-      expect(result).toEqual(invitation);
+      expect(result).toEqual(alreadyOpened);
     });
   });
 });

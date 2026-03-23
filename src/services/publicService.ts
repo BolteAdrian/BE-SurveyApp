@@ -1,7 +1,8 @@
-import prisma from '../db/prisma';
-import { SurveyStatus } from "../utils/constants";
-import { trackingService } from "./trackingService";
+import prisma from "../db/prisma";
 import { validateAnswers, validateToken } from "../utils/validators";
+import crypto from "crypto";
+import { trackingService } from "./trackingService";
+import { SurveyStatus } from "../utils/constants";
 
 /**
  * Service for public survey access and submissions
@@ -23,19 +24,24 @@ export const publicService = {
         CLOSED: "SURVEY_CLOSED",
         ALREADY_SUBMITTED: "ALREADY_SUBMITTED",
       };
-      return { error: (result.reason && errorMap[result.reason]) || "INVALID_LINK" };
+      return {
+        error: (result.reason && errorMap[result.reason]) || "INVALID_LINK",
+      };
     }
 
-    return { survey: result.invitation?.survey, invitation: result.invitation };
+    return {
+      survey: result.invitation?.surveyId,
+      invitation: result.invitation,
+    };
   },
 
   /**
    * Submit survey response
    * @param slug Survey slug
-   * @param tokenHash Invitation token hash
+   * @param rawToken Invitation token hash
    * @param answers Array of answers
    */
-  submitResponse: async (slug: string, tokenHash: string, answers: any[]) => {
+  submitResponse: async (slug: string, rawToken: string, answers: any[]) => {
     const survey = await prisma.survey.findUnique({
       where: { slug },
       include: { questions: true },
@@ -47,33 +53,59 @@ export const publicService = {
       throw { status: 410, message: "Survey closed" };
     }
 
+    // Hash the raw token
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
     const invitation = await prisma.invitation.findFirst({
       where: { tokenHash, surveyId: survey.id },
     });
-
-    if (!invitation) throw new Error("Invalid token");
-
-    if (invitation.submittedAt) throw new Error("Already submitted");
 
     // Validate answers
     const errors = validateAnswers(survey.questions, answers);
     if (errors.length > 0) return { error: "VALIDATION_FAILED", errors };
 
-    // Save responses (text and choice answers)
-    for (const answer of answers) {
-      await prisma.response.create({
-        data: {
-          surveyId: survey.id,
-          invitationId: invitation.id,
-          // Assuming answers are split into text and choice based on schema
-          // This is a placeholder for the actual relation names in your Prisma schema
-          // e.g., answerTexts: { create: ... }, answerChoices: { create: ... }
-          ...answers,
-        },
-      });
+    if (!invitation) {
+      const err: any = new Error("INVALID_LINK");
+      err.status = 409;
+      throw err;
     }
 
-    // Mark invitation as submitted
+    if (invitation.submittedAt) {
+      const err: any = new Error("ALREADY_SUBMITTED");
+      err.status = 409;
+      throw err;
+    }
+
+    const answersChoice = answers
+      .filter((a) => a.optionId)
+      .map((a) => ({
+        questionId: a.questionId,
+        optionId: a.optionId,
+      }));
+
+    const answersText = answers
+      .filter((a) => a.textValue !== undefined)
+      .map((a) => ({
+        questionId: a.questionId,
+        textValue: String(a.textValue),
+      }));
+
+    await prisma.response.create({
+      data: {
+        surveyId: survey.id,
+        invitationId: invitation.id,
+        answersChoice: {
+          create: answersChoice,
+        },
+        answersText: {
+          create: answersText,
+        },
+      },
+    });
+
     await prisma.invitation.update({
       where: { id: invitation.id },
       data: { submittedAt: new Date() },

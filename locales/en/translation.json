@@ -42,5 +42,15 @@
   "WEBHOOK": {
     "PAYLOAD_MISSING": "Webhook payload missing.",
     "SES_FAILED": "Processing SES webhook failed."
+  },
+  "EMAIL_LIST": {
+    "FETCH_FAILED": "Failed to fetch email lists",
+    "CREATE_FAILED": "Failed to create email list",
+    "IMPORT_INVALID": "Invalid contacts format",
+    "IMPORT_SUCCESS": "Contacts imported successfully",
+    "IMPORT_FAILED": "Import failed",
+    "DELETE_FAILED": "Failed to delete email list",
+    "ADD_FAILED": "Failed to add contact",
+    "CONTACT_DELETE_FAILED": "Failed to delete contact"
   }
 }

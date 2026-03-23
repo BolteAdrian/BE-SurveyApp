@@ -1,260 +1,184 @@
+import { surveyService } from "../../services/surveyService";
+import { SurveyStatus } from "../../utils/constants";
+import prisma from "../../db/prisma";
 
-import { surveyService } from '../../services/surveyService';
-import { SurveyStatus } from '../../utils/constants';
-import { PrismaClient } from "@prisma/client";
-
-jest.mock('@prisma/client', () => {
-  const mPrisma = {
+jest.mock("../../db/prisma", () => {
+  // Create the mock object INSIDE the factory
+  const m:any = {
     survey: {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      delete: jest.fn(),
     },
     question: {
       create: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
+    option: { createMany: jest.fn(), deleteMany: jest.fn() },
+    answerChoice: { deleteMany: jest.fn() },
+    answerText: { deleteMany: jest.fn() },
+    $transaction: jest.fn((input) => {
+      // Logic to handle both array of promises and callback functions
+      if (typeof input === "function") return input(m);
+      return Promise.all(input);
+    }),
   };
-
-  return {
-    PrismaClient: jest.fn(() => mPrisma),
-  };
+  return { __esModule: true, default: m };
 });
 
-const prisma = new PrismaClient();
+const prismaMock = prisma as any;
 
-/**
- * Fix TypeScript typing for mocks
- */
-const prismaMock = prisma as unknown as {
-  survey: {
-    create: jest.Mock;
-    findUnique: jest.Mock;
-    update: jest.Mock;
-    findMany: jest.Mock;
-  };
-  question: {
-    create: jest.Mock;
-    update: jest.Mock;
-    count: jest.Mock;
-  };
-};
-
-describe('surveyService', () => {
+describe("surveyService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('createSurvey', () => {
-    it('should create a survey in draft status', async () => {
-      prismaMock.survey.create.mockResolvedValue({
-        id: '1',
-        title: 'Test',
+  describe("createSurvey", () => {
+    it("should create a survey and return it with questions included", async () => {
+      const mockSurvey = {
+        id: "s1",
+        title: "New Survey",
         status: SurveyStatus.Draft,
+      };
+
+      (prismaMock.survey.create as jest.Mock).mockResolvedValue(mockSurvey);
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
+        ...mockSurvey,
+        questions: [],
       });
 
-      const result = await surveyService.createSurvey('Test');
+      const result = await surveyService.createSurvey(
+        "New Survey",
+        "slug-1",
+        "user-1",
+        [], // No initial questions
+      );
 
+      // Verify correct data is sent to Prisma
       expect(prismaMock.survey.create).toHaveBeenCalledWith({
-        data: {
-          title: 'Test',
-          description: undefined,
-          slug: undefined,
+        data: expect.objectContaining({
+          title: "New Survey",
+          slug: "slug-1",
+          ownerId: "user-1",
           status: SurveyStatus.Draft,
-        },
+        }),
       });
+      expect(result?.id).toBe("s1");
+    });
 
-      expect(result.status).toBe(SurveyStatus.Draft);
+    it("should handle nested questions creation during survey setup", async () => {
+      const mockSurvey = { id: "s1" };
+      (prismaMock.survey.create as jest.Mock).mockResolvedValue(mockSurvey);
+      // Mocking the question create inside the transaction loop
+      (prismaMock.question.create as jest.Mock).mockResolvedValue({ id: "q1" });
+
+      const questions = [
+        {
+          title: "Q1",
+          type: "CHOICE",
+          order: 1,
+          options: [{ label: "Opt 1", order: 1 }],
+        },
+      ] as any;
+
+      await surveyService.createSurvey("Title", "slug", "owner", questions);
+
+      expect(prismaMock.question.create).toHaveBeenCalled();
+      expect(prismaMock.option.createMany).toHaveBeenCalled();
     });
   });
 
-  describe('updateSurvey', () => {
-    it('should throw if survey not found', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue(null);
+  describe("updateSurvey", () => {
+    it('should throw "Survey not found" if ID does not exist', async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        surveyService.updateSurvey('1', { title: 'New' })
-      ).rejects.toThrow('Survey not found');
+        surveyService.updateSurvey("non-existent", { title: "New" }),
+      ).rejects.toThrow("Survey not found");
     });
 
-    it('should throw if survey is not draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
+    it("should prevent updates if the survey is already Published", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
+        id: "1",
         status: SurveyStatus.Published,
       });
 
       await expect(
-        surveyService.updateSurvey('1', { title: 'New' })
-      ).rejects.toThrow('Cannot edit a published/closed survey');
+        surveyService.updateSurvey("1", { title: "New" }),
+      ).rejects.toThrow("Cannot edit a published/closed survey");
+    });
+  });
+
+  describe("publishSurvey", () => {
+    it("should block publishing if the survey has zero questions", async () => {
+      (prismaMock.question.count as jest.Mock).mockResolvedValue(0);
+
+      await expect(surveyService.publishSurvey("1")).rejects.toThrow(
+        "Survey must have at least one question",
+      );
     });
 
-    it('should update survey if draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Draft,
+    it("should update status to Published if requirements are met", async () => {
+      (prismaMock.question.count as jest.Mock).mockResolvedValue(5);
+      (prismaMock.survey.update as jest.Mock).mockResolvedValue({
+        status: SurveyStatus.Published,
       });
 
-      prismaMock.survey.update.mockResolvedValue({
-        id: '1',
-        title: 'New',
-      });
-
-      const result = await surveyService.updateSurvey('1', { title: 'New' });
+      const result = await surveyService.publishSurvey("1");
 
       expect(prismaMock.survey.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: { title: 'New' },
-      });
-
-      expect(result.title).toBe('New');
-    });
-  });
-
-  describe('addQuestion', () => {
-    it('should throw if survey is not draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
-      });
-
-      await expect(
-        surveyService.addQuestion('1', { title: 'Q1' })
-      ).rejects.toThrow('Survey not editable');
-    });
-
-    it('should create question if survey is draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Draft,
-      });
-
-      prismaMock.question.create.mockResolvedValue({
-        id: 'q1',
-        title: 'Q1',
-      });
-
-      const result = await surveyService.addQuestion('1', { title: 'Q1' });
-
-      expect(prismaMock.question.create).toHaveBeenCalledWith({
-        data: {
-          title: 'Q1',
-          surveyId: '1',
-        },
-      });
-
-      expect(result.id).toBe('q1');
-    });
-  });
-
-  describe('updateQuestion', () => {
-    it('should throw if survey is not draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
-      });
-
-      await expect(
-        surveyService.updateQuestion('1', 'q1', { title: 'New' })
-      ).rejects.toThrow('Survey not editable');
-    });
-
-    it('should update question if survey is draft', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Draft,
-      });
-
-      prismaMock.question.update.mockResolvedValue({
-        id: 'q1',
-        title: 'New',
-      });
-
-      const result = await surveyService.updateQuestion('1', 'q1', {
-        title: 'New',
-      });
-
-      expect(prismaMock.question.update).toHaveBeenCalledWith({
-        where: { id: 'q1' },
-        data: { title: 'New' },
-      });
-
-      expect(result.title).toBe('New');
-    });
-  });
-
-  describe('publishSurvey', () => {
-    it('should throw if no questions', async () => {
-      prismaMock.question.count.mockResolvedValue(0);
-
-      await expect(
-        surveyService.publishSurvey('1')
-      ).rejects.toThrow('Survey must have at least one question');
-    });
-
-    it('should publish survey if has questions', async () => {
-      prismaMock.question.count.mockResolvedValue(2);
-
-      prismaMock.survey.update.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
-      });
-
-      const result = await surveyService.publishSurvey('1');
-
-      expect(prismaMock.survey.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: "1" },
         data: { status: SurveyStatus.Published },
       });
-
       expect(result.status).toBe(SurveyStatus.Published);
     });
   });
 
-  describe('closeSurvey', () => {
-    it('should close survey', async () => {
-      prismaMock.survey.update.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Closed,
+  describe("deleteSurvey", () => {
+    it("should throw error if trying to delete a non-draft survey", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
+        id: "1",
+        status: SurveyStatus.Published,
       });
 
-      const result = await surveyService.closeSurvey('1');
+      await expect(surveyService.deleteSurvey("1")).rejects.toThrow(
+        "Only draft surveys can be deleted",
+      );
+    });
 
-      expect(prismaMock.survey.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: { status: SurveyStatus.Closed },
+    it("should execute a transaction to clean up all related data on deletion", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
+        id: "s1",
+        status: SurveyStatus.Draft,
       });
 
-      expect(result.status).toBe(SurveyStatus.Closed);
+      await surveyService.deleteSurvey("s1");
+
+      // Check if transaction was called to delete questions, options, and survey
+      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(prismaMock.survey.delete).toHaveBeenCalledWith({
+        where: { id: "s1" },
+      });
     });
   });
 
-  describe('getSurveys', () => {
-    it('should return all surveys when no status filter', async () => {
-      const surveys = [{ id: '1', title: 'Test 1' }, { id: '2', title: 'Test 2' }];
-      prismaMock.survey.findMany.mockResolvedValue(surveys);
+  describe("getSurveys", () => {
+    it("should include question counts in the list", async () => {
+      await surveyService.getSurveys();
 
-      const result = await surveyService.getSurveys();
-
-      expect(prismaMock.survey.findMany).toHaveBeenCalledWith({
-        where: {},
-        orderBy: { createdAt: 'desc' },
-      });
-      expect(result).toEqual(surveys);
-    });
-
-    it('should return filtered surveys by status', async () => {
-      const surveys = [{ id: '1', title: 'Draft 1', status: SurveyStatus.Draft }];
-      prismaMock.survey.findMany.mockResolvedValue(surveys);
-
-      const result = await surveyService.getSurveys(SurveyStatus.Draft);
-
-      expect(prismaMock.survey.findMany).toHaveBeenCalledWith({
-        where: { status: SurveyStatus.Draft },
-        orderBy: { createdAt: 'desc' },
-      });
-      expect(result).toEqual(surveys);
+      expect(prismaMock.survey.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: {
+            _count: { select: { questions: true } },
+          },
+        }),
+      );
     });
   });
 });

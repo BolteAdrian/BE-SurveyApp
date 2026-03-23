@@ -1,192 +1,178 @@
+import { publicService } from "../../services/publicService";
+import prisma from "../../db/prisma";
+import { validateToken, validateAnswers } from "../../utils/validators";
+import { SurveyStatus } from "../../utils/constants";
+import crypto from "crypto";
 
-import { PrismaClient } from '@prisma/client';
-import { publicService } from '../../services/publicService';
-import { SurveyStatus } from '../../utils/constants';
+// 1. Mock Prisma instance from your DB config file
+jest.mock("../../db/prisma", () => ({
+  __esModule: true,
+  default: {
+    survey: { findUnique: jest.fn() },
+    invitation: { findFirst: jest.fn(), update: jest.fn() },
+    response: { create: jest.fn() },
+  },
+}));
 
-jest.mock('@prisma/client', () => {
-  const mPrisma = {
-    survey: {
-      findUnique: jest.fn(),
-    },
-    invitation: {
-      findFirst: jest.fn(),
-      update: jest.fn(),
-    },
-    response: {
-      create: jest.fn(),
-    },
-  };
+// 2. Mock external utility validators
+jest.mock("../../utils/validators", () => ({
+  validateToken: jest.fn(),
+  validateAnswers: jest.fn(),
+}));
 
-  return {
-    PrismaClient: jest.fn(() => mPrisma),
-  };
-});
+// 3. Mock tracking service to avoid side effects
+jest.mock("../../services/trackingService", () => ({
+  trackingService: { markSurveyOpened: jest.fn() },
+}));
 
-const prisma = new PrismaClient();
+const prismaMock = prisma as jest.Mocked<typeof prisma>;
 
-/**
- * Cast Prisma to mocked version (fix TypeScript issues)
- */
-const prismaMock = prisma as unknown as {
-  survey: { findUnique: jest.Mock };
-  invitation: { findFirst: jest.Mock; update: jest.Mock };
-  response: { create: jest.Mock };
-};
-
-describe('publicService', () => {
+describe("publicService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('getSurveyPage', () => {
-    it('should return INVALID_LINK if survey not found', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue(null);
+  describe("getSurveyPage", () => {
+    it("should return INVALID_LINK if token validation fails (MISSING/INVALID)", async () => {
+      (validateToken as jest.Mock).mockResolvedValue({
+        valid: false,
+        reason: "MISSING",
+      });
 
-      const result = await publicService.getSurveyPage('slug', 'token');
+      const result = await publicService.getSurveyPage("slug", "token");
 
-      expect(result).toEqual({ error: 'INVALID_LINK' });
+      expect(result).toEqual({ error: "INVALID_LINK" });
     });
 
-    it('should return INVALID_LINK if invitation not found', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
+    it("should return SURVEY_CLOSED when token validation reason is CLOSED", async () => {
+      (validateToken as jest.Mock).mockResolvedValue({
+        valid: false,
+        reason: "CLOSED",
       });
 
-      prismaMock.invitation.findFirst.mockResolvedValue(null);
+      const result = await publicService.getSurveyPage("slug", "token");
 
-      const result = await publicService.getSurveyPage('slug', 'token');
-
-      expect(result).toEqual({ error: 'INVALID_LINK' });
+      expect(result).toEqual({ error: "SURVEY_CLOSED" });
     });
 
-    it('should return SURVEY_CLOSED', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Closed,
-      });
-
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-      });
-
-      const result = await publicService.getSurveyPage('slug', 'token');
-
-      expect(result).toEqual({ error: 'SURVEY_CLOSED' });
-    });
-
-    it('should return ALREADY_SUBMITTED', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
-      });
-
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-        submittedAt: new Date(),
-      });
-
-      const result = await publicService.getSurveyPage('slug', 'token');
-
-      expect(result).toEqual({ error: 'ALREADY_SUBMITTED' });
-    });
-
-    it('should return survey and invitation if valid', async () => {
-      const surveyMock = {
-        id: '1',
-        status: SurveyStatus.Published,
-        questions: [],
-      };
-
-      const invitationMock = {
-        id: 'inv1',
+    it("should return survey and invitation data if validation is successful", async () => {
+      const mockInvitation = {
+        id: "inv1",
+        surveyId: "survey-uuid-1",
         submittedAt: null,
       };
+      (validateToken as jest.Mock).mockResolvedValue({
+        valid: true,
+        invitation: mockInvitation,
+      });
 
-      prismaMock.survey.findUnique.mockResolvedValue(surveyMock);
-      prismaMock.invitation.findFirst.mockResolvedValue(invitationMock);
-
-      const result = await publicService.getSurveyPage('slug', 'token');
+      const result = await publicService.getSurveyPage("slug", "token");
 
       expect(result).toEqual({
-        survey: surveyMock,
-        invitation: invitationMock,
+        survey: "survey-uuid-1",
+        invitation: mockInvitation,
       });
     });
   });
 
-  describe('submitResponse', () => {
-    it('should throw if survey is closed', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
+  describe("submitResponse", () => {
+    const mockSurvey = {
+      id: "s1",
+      status: SurveyStatus.Published,
+      questions: [
+        { id: "q1", type: "TEXT" },
+        { id: "q2", type: "CHOICE" },
+      ],
+    };
+
+    it("should throw 410 error if the survey status is Closed", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
+        ...mockSurvey,
         status: SurveyStatus.Closed,
       });
 
       await expect(
-        publicService.submitResponse('slug', 'token', [])
-      ).rejects.toMatchObject({ status: 410 });
+        publicService.submitResponse("slug", "token", []),
+      ).rejects.toMatchObject({ status: 410, message: "Survey closed" });
     });
 
-    it('should throw if invitation not found', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
+    it("should return VALIDATION_FAILED if answers do not pass schema validation", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue(mockSurvey);
+      (validateAnswers as jest.Mock).mockReturnValue([
+        { field: "q1", error: "Required" },
+      ]);
+
+      const result = await publicService.submitResponse("slug", "token", []);
+
+      expect(result).toEqual({
+        error: "VALIDATION_FAILED",
+        errors: expect.any(Array),
       });
-
-      prismaMock.invitation.findFirst.mockResolvedValue(null);
-
-      await expect(
-        publicService.submitResponse('slug', 'token', [])
-      ).rejects.toThrow('Invalid token');
     });
 
-    it('should throw if already submitted', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
-      });
+    it("should hash the raw token before querying the database", async () => {
+      const rawToken = "user-secret-token";
+      const expectedHash = crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex");
 
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
-        submittedAt: new Date(),
-      });
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue(mockSurvey);
+      (validateAnswers as jest.Mock).mockReturnValue([]);
+      (prismaMock.invitation.findFirst as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        publicService.submitResponse('slug', 'token', [])
-      ).rejects.toThrow('Already submitted');
+      // We expect it to fail later, but we check the call to findFirst
+      try {
+        await publicService.submitResponse("slug", rawToken, []);
+      } catch (e) {}
+
+      expect(prismaMock.invitation.findFirst).toHaveBeenCalledWith({
+        where: { tokenHash: expectedHash, surveyId: mockSurvey.id },
+      });
     });
 
-    it('should create response and mark submittedAt', async () => {
-      prismaMock.survey.findUnique.mockResolvedValue({
-        id: '1',
-        status: SurveyStatus.Published,
+    it("should correctly separate Choice answers from Text answers and save them", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue(mockSurvey);
+      (validateAnswers as jest.Mock).mockReturnValue([]); // No errors
+      (prismaMock.invitation.findFirst as jest.Mock).mockResolvedValue({
+        id: "inv1",
       });
 
-      prismaMock.invitation.findFirst.mockResolvedValue({
-        id: 'inv1',
+      const mixedAnswers = [
+        { questionId: "q1", textValue: "My comment" },
+        { questionId: "q2", optionId: "opt-99" },
+      ];
+
+      await publicService.submitResponse("slug", "token", mixedAnswers);
+
+      // Verify Prisma create call structure
+      expect(prismaMock.response.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          answersChoice: {
+            create: [{ questionId: "q2", optionId: "opt-99" }],
+          },
+          answersText: {
+            create: [{ questionId: "q1", textValue: "My comment" }],
+          },
+        }),
+      });
+    });
+
+    it("should update invitation status and return success:true upon completion", async () => {
+      (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue(mockSurvey);
+      (validateAnswers as jest.Mock).mockReturnValue([]);
+      (prismaMock.invitation.findFirst as jest.Mock).mockResolvedValue({
+        id: "inv-final",
         submittedAt: null,
       });
 
-      prismaMock.response.create.mockResolvedValue({
-        id: 'resp1',
-      });
-
-      prismaMock.invitation.update.mockResolvedValue({});
-
-      const result = await publicService.submitResponse(
-        'slug',
-        'token',
-        []
-      );
-
-      expect(prismaMock.response.create).toHaveBeenCalled();
+      const result = await publicService.submitResponse("slug", "token", []);
 
       expect(prismaMock.invitation.update).toHaveBeenCalledWith({
-        where: { id: 'inv1' },
+        where: { id: "inv-final" },
         data: { submittedAt: expect.any(Date) },
       });
-
-      expect(result).toEqual({ id: 'resp1' });
+      expect(result).toEqual({ success: true });
     });
   });
 });

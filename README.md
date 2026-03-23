@@ -65,6 +65,8 @@ NODE_ENV=development
 
 npm run db:setup
 
+npx prisma generate
+
 > This command will:
 > - create the database if it does not exist  
 > - run Prisma migrations  

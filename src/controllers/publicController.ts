@@ -40,7 +40,7 @@ export const publicController = {
       res.status(200).json(result);
     } catch (err) {
       console.error(err);
-      res.status(500).json({
+      res.status(400).json({
         error: req.t("SURVEY.FETCH_FAILED"),
       });
     }
@@ -68,10 +68,9 @@ export const publicController = {
         answers,
       );
 
-      if (result.error) {
+      if (!result.success) {
         return res.status(400).json({
           error: req.t("SURVEY.RESPONSE_SUBMIT_FAILED"),
-          message: result.error,
         });
       }
 
@@ -81,6 +80,11 @@ export const publicController = {
       if (err.status === 410) {
         return res.status(410).json({
           error: req.t("SURVEY.CLOSED"),
+        });
+      }
+      if (err.message === "ALREADY_SUBMITTED") {
+        return res.status(409).json({
+          message: "ALREADY_SUBMITTED",
         });
       }
       res.status(400).json({

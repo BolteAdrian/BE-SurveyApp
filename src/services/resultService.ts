@@ -33,43 +33,49 @@ export const resultService = {
    * Question statistics: count + % per option
    */
   getQuestionStats: async (surveyId: string) => {
-    const questions = await prisma.question.findMany({
-      where: { surveyId, type: QuestionType.Choice },
-      include: {
-        options: true,
-      },
+    const survey = await prisma.survey.findUnique({
+      where: { id: surveyId },
+      select: { title: true, status: true },
     });
 
-    const results = [];
+    const questions = await prisma.question.findMany({
+      where: { surveyId },
+      include: {
+        options: {
+          include: { _count: { select: { answerChoices: true } } },
+        },
+        _count: { select: { answersChoice: true, answersText: true } },
+      },
+      orderBy: { order: "asc" },
+    });
 
-    for (const q of questions) {
-      const answers = await prisma.answerChoice.findMany({
-        where: { questionId: q.id },
-      });
+    const totalResponses = await prisma.response.count({ where: { surveyId } });
 
-      const total = answers.length;
+    const questionsWithStats = questions.map((q) => ({
+      id: q.id,
+      title: q.title,
+      type: q.type,
+      totalAnswers:
+        q.type === QuestionType.Choice
+          ? q._count.answersChoice
+          : q._count.answersText,
+      stats:
+        q.type === QuestionType.Choice && totalResponses > 0
+          ? q.options.map((opt) => ({
+              optionId: opt.id,
+              label: opt.label,
+              count: opt._count.answerChoices,
+              percent:
+                totalResponses > 0
+                  ? Math.round(
+                      (opt._count.answerChoices / totalResponses) * 100,
+                    )
+                  : 0,
+            }))
+          : undefined,
+    }));
 
-      const stats = q.options.map((opt: IOption) => {
-        const count = answers.filter(
-          (a: IAnswerChoice) => a.optionId === opt.id,
-        ).length;
-
-        return {
-          optionId: opt.id,
-          label: opt.label,
-          count,
-          percent: total ? Math.round((count / total) * 100) : 0,
-        };
-      });
-
-      results.push({
-        questionId: q.id,
-        title: q.title,
-        stats,
-      });
-    }
-
-    return results;
+    return { survey, questions: questionsWithStats };
   },
 
   /**
