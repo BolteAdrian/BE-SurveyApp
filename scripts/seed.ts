@@ -75,7 +75,7 @@ async function main() {
         ],
       },
     },
-    include: { emailContacts: true }, // we need IDs for invitations
+    include: { emailContacts: true }, 
   });
 
   // -----------------------------
@@ -86,7 +86,7 @@ async function main() {
       data: {
         surveyId: survey.id,
         contactId: contact.id,
-        tokenHash: `${contact.email}-token-demo`,
+        tokenHash: `${contact.id}-token-demo`,
         sentAt: new Date(),
       },
     });

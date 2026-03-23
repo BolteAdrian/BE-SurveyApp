@@ -101,25 +101,39 @@ export const surveyService = {
     });
   },
 
-  /**
-   * Get all surveys with total questions count and optional status filter
-   */
-  getSurveys: async (status?: SurveyStatus) => {
-    const where = status ? { status } : {};
+/**
+ * Get all surveys with counts for questions, total invitations, and submissions
+ */
+getSurveys: async (status?: SurveyStatus) => {
+  const where = status ? { status } : {};
 
-    return prisma.survey.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: {
-            questions: true,
-          },
+  const surveys = await prisma.survey.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      _count: {
+        select: {
+          questions: true,
+          invitations: true, 
         },
       },
-    });
-  },
+      invitations: {
+        where: {
+          submittedAt: { not: null }
+        },
+        select: {
+          id: true
+        }
+      }
+    },
+  });
 
+  return surveys.map(s => ({
+    ...s,
+    submittedCount: s.invitations.length,
+    invitations: undefined 
+  }));
+},
   /**
    * Get a single survey by id, with questions
    */
