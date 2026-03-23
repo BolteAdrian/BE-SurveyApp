@@ -9,6 +9,7 @@
     "db:migrate": "npx prisma migrate deploy",
     "db:seed": "ts-node scripts/seed.ts",
     "test": "jest",
+    "test:cov": "jest --coverage",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"

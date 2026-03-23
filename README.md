@@ -3,11 +3,15 @@
 Backend for **SurveyApp** (Node.js + TypeScript + PostgreSQL + i18n).  
 This project implements APIs for surveys, questions, invitations, and email/response tracking.
 
+## Frontend link :
+https://github.com/BolteAdrian/FE-SurveyApp
+
 ---
 
 ## 🏗️ Technologies
 
-- Node.js 20+  
+- Node.js 25.8.1
+- NPM 11.11
 - TypeScript  
 - PostgreSQL  
 - pg (node-postgres)  
@@ -81,6 +85,26 @@ npm run dev
 
 npm run build
 npm run start
+
+
+## 🧪 Testing & Quality Assurance
+
+This project includes a robust suite of Unit and Integration Tests using Jest to ensure business logic reliability and data integrity.
+Public Service Tests: Validates survey access logic, token hashing, and response submission (mapping choices vs. text answers).
+Survey Management Tests: Ensures strict workflow rules (e.g., surveys can only be edited/deleted in DRAFT status).
+Tracking Logic: Verifies that email and survey open events are recorded correctly and are idempotent (preventing duplicate timestamps).
+To run the tests with a full coverage report:
+
+Bash
+npm run test -- --coverage
+
+## 📧 Email Testing (Development)
+
+The system uses Ethereal Email for safe testing.
+
+1. Create a fake SMTP account at Ethereal.email.
+2. Update EMAIL_USER and EMAIL_PASS in your .env.
+3. Sent emails can be viewed directly in the Ethereal dashboard.
 
 ## 🏃‍♂️ Available Scripts
 Script	Description
