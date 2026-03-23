@@ -71,11 +71,11 @@ export const resultService = {
       title: q.title,
       type: q.type,
       totalAnswers:
-        q.type === QuestionType.Choice
+        q.type === QuestionType.CHOICE
           ? q._count.answersChoice
           : q._count.answersText,
       stats:
-        q.type === QuestionType.Choice && totalResponses > 0
+        q.type === QuestionType.CHOICE && totalResponses > 0
           ? q.options.map((opt) => ({
               optionId: opt.id,
               label: opt.label,
@@ -153,7 +153,7 @@ export const resultService = {
 
       // Add choice answers
       questions
-        .filter((q) => q.type === QuestionType.Choice)
+        .filter((q) => q.type === QuestionType.CHOICE)
         .forEach((q) => {
           const answer = resp.answersChoice.find(
             (ac: IAnswerChoice) => ac.questionId === q.id,
@@ -163,7 +163,7 @@ export const resultService = {
 
       // Add text answers
       questions
-        .filter((q) => q.type === QuestionType.Text)
+        .filter((q) => q.type === QuestionType.TEXT)
         .forEach((q) => {
           const answer = resp.answersText.find((at) => at.questionId === q.id);
           row[q.title] = answer ? answer.textValue : "";

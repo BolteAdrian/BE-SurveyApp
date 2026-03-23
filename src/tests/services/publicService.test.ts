@@ -78,7 +78,7 @@ describe("publicService", () => {
   describe("submitResponse", () => {
     const mockSurvey = {
       id: "s1",
-      status: SurveyStatus.Published,
+      status: SurveyStatus.PUBLISHED,
       questions: [
         { id: "q1", type: "TEXT" },
         { id: "q2", type: "CHOICE" },
@@ -88,7 +88,7 @@ describe("publicService", () => {
     it("should throw 410 error if the survey status is Closed", async () => {
       (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
         ...mockSurvey,
-        status: SurveyStatus.Closed,
+        status: SurveyStatus.CLOSED,
       });
 
       await expect(

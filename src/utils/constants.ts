@@ -1,12 +1,12 @@
 export enum SurveyStatus {
-  Draft = "DRAFT",
-  Published = "PUBLISHED",
-  Closed = "CLOSED",
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  CLOSED = "CLOSED",
 }
 
 export enum QuestionType {
-  Choice = "CHOICE",
-  Text = "TEXT",
+  CHOICE = "CHOICE",
+  TEXT = "TEXT",
 }
 
 export const pixel = Buffer.from(

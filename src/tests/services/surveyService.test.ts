@@ -44,7 +44,7 @@ describe("surveyService", () => {
       const mockSurvey = {
         id: "s1",
         title: "New Survey",
-        status: SurveyStatus.Draft,
+        status: SurveyStatus.DRAFT,
       };
 
       (prismaMock.survey.create as jest.Mock).mockResolvedValue(mockSurvey);
@@ -58,6 +58,8 @@ describe("surveyService", () => {
         "slug-1",
         "user-1",
         [], // No initial questions
+        SurveyStatus.DRAFT,
+        "Description"
       );
 
       // Verify correct data is sent to Prisma
@@ -66,7 +68,7 @@ describe("surveyService", () => {
           title: "New Survey",
           slug: "slug-1",
           ownerId: "user-1",
-          status: SurveyStatus.Draft,
+          status: SurveyStatus.DRAFT,
         }),
       });
       expect(result?.id).toBe("s1");
@@ -87,7 +89,7 @@ describe("surveyService", () => {
         },
       ] as any;
 
-      await surveyService.createSurvey("Title", "slug", "owner", questions);
+      await surveyService.createSurvey("Title", "slug", "owner", questions, SurveyStatus.DRAFT);
 
       expect(prismaMock.question.create).toHaveBeenCalled();
       expect(prismaMock.option.createMany).toHaveBeenCalled();
@@ -106,7 +108,7 @@ describe("surveyService", () => {
     it("should prevent updates if the survey is already Published", async () => {
       (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
         id: "1",
-        status: SurveyStatus.Published,
+        status: SurveyStatus.PUBLISHED,
       });
 
       await expect(
@@ -127,16 +129,16 @@ describe("surveyService", () => {
     it("should update status to Published if requirements are met", async () => {
       (prismaMock.question.count as jest.Mock).mockResolvedValue(5);
       (prismaMock.survey.update as jest.Mock).mockResolvedValue({
-        status: SurveyStatus.Published,
+        status: SurveyStatus.PUBLISHED,
       });
 
       const result = await surveyService.publishSurvey("1");
 
       expect(prismaMock.survey.update).toHaveBeenCalledWith({
         where: { id: "1" },
-        data: { status: SurveyStatus.Published },
+        data: { status: SurveyStatus.PUBLISHED },
       });
-      expect(result.status).toBe(SurveyStatus.Published);
+      expect(result.status).toBe(SurveyStatus.PUBLISHED);
     });
   });
 
@@ -144,7 +146,7 @@ describe("surveyService", () => {
     it("should throw error if trying to delete a non-draft survey", async () => {
       (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
         id: "1",
-        status: SurveyStatus.Published,
+        status: SurveyStatus.PUBLISHED,
       });
 
       await expect(surveyService.deleteSurvey("1")).rejects.toThrow(
@@ -155,7 +157,7 @@ describe("surveyService", () => {
     it("should execute a transaction to clean up all related data on deletion", async () => {
       (prismaMock.survey.findUnique as jest.Mock).mockResolvedValue({
         id: "s1",
-        status: SurveyStatus.Draft,
+        status: SurveyStatus.DRAFT,
       });
 
       await surveyService.deleteSurvey("s1");
@@ -169,16 +171,41 @@ describe("surveyService", () => {
   });
 
   describe("getSurveys", () => {
-    it("should include question counts in the list", async () => {
-      await surveyService.getSurveys();
+    it("should include question and submission counts in the list", async () => {
+      const mockSurveys = [
+        {
+          id: "s1",
+          title: "Survey 1",
+          invitations: [{ id: "i1" }, { id: "i2" }],
+          _count: { questions: 5, invitations: 10 },
+        },
+      ];
+      (prismaMock.survey.findMany as jest.Mock).mockResolvedValue(mockSurveys);
+      const result = await surveyService.getSurveys();
 
       expect(prismaMock.survey.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: {
-            _count: { select: { questions: true } },
+            _count: {
+              select: {
+                questions: true,
+                invitations: true,
+              },
+            },
+            invitations: {
+              where: {
+                submittedAt: { not: null },
+              },
+              select: {
+                id: true,
+              },
+            },
           },
         }),
       );
+
+      expect(result[0]).toHaveProperty("submittedCount", 2);
+      expect(result[0].invitations).toBeUndefined();
     });
   });
 });

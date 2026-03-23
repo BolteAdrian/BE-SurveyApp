@@ -22,7 +22,7 @@ export const surveyService = {
       title,
       description,
       slug,
-      status: status || SurveyStatus.Draft,
+      status: status || SurveyStatus.DRAFT,
       ownerId,
       createdAt: new Date(),
       publishedAt: null,
@@ -74,7 +74,7 @@ export const surveyService = {
   ) => {
     const survey = await prisma.survey.findUnique({ where: { id } });
     if (!survey) throw new Error("Survey not found");
-    if (survey.status !== SurveyStatus.Draft)
+    if (survey.status !== SurveyStatus.DRAFT)
       throw new Error("Cannot edit a published/closed survey");
     return prisma.survey.update({ where: { id }, data });
   },
@@ -88,7 +88,7 @@ export const surveyService = {
       throw new Error("Survey must have at least one question");
     return prisma.survey.update({
       where: { id: surveyId },
-      data: { status: SurveyStatus.Published },
+      data: { status: SurveyStatus.PUBLISHED },
     });
   },
 
@@ -98,7 +98,7 @@ export const surveyService = {
   closeSurvey: async (surveyId: string) => {
     return prisma.survey.update({
       where: { id: surveyId },
-      data: { status: SurveyStatus.Closed },
+      data: { status: SurveyStatus.CLOSED },
     });
   },
 
@@ -162,7 +162,7 @@ getSurveys: async (status?: SurveyStatus) => {
       throw new Error("Survey not found");
     }
 
-    if (survey.status !== SurveyStatus.Draft) {
+    if (survey.status !== SurveyStatus.DRAFT) {
       throw new Error("Only draft surveys can be deleted");
     }
 
@@ -217,7 +217,7 @@ getSurveys: async (status?: SurveyStatus) => {
    */
   addQuestion: async (surveyId: string, questionData: any) => {
     const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
-    if (!survey || survey.status !== SurveyStatus.Draft)
+    if (!survey || survey.status !== SurveyStatus.DRAFT)
       throw new Error("Survey not editable");
     return prisma.question.create({
       data: { ...questionData, surveyId },
@@ -230,7 +230,7 @@ getSurveys: async (status?: SurveyStatus) => {
   updateQuestion: async (surveyId: string, questionId: string, data: any) => {
     const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
 
-    if (!survey || survey.status !== SurveyStatus.Draft)
+    if (!survey || survey.status !== SurveyStatus.DRAFT)
       throw new Error("Survey not editable");
 
     return prisma.question.update({
@@ -267,7 +267,7 @@ getSurveys: async (status?: SurveyStatus) => {
       where: { id: surveyId },
     });
 
-    if (!survey || survey.status !== SurveyStatus.Draft) {
+    if (!survey || survey.status !== SurveyStatus.DRAFT) {
       throw new Error("Survey not editable");
     }
 

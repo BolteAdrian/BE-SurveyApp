@@ -49,7 +49,7 @@ export const publicService = {
 
     if (!survey) throw new Error("Invalid survey");
 
-    if (survey.status === SurveyStatus.Closed) {
+    if (survey.status === SurveyStatus.CLOSED) {
       throw { status: 410, message: "Survey closed" };
     }
 
