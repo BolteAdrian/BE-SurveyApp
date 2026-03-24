@@ -215,14 +215,31 @@ getSurveys: async (status?: SurveyStatus) => {
   /**
    * Add question to a survey (only if draft)
    */
-  addQuestion: async (surveyId: string, questionData: any) => {
-    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
-    if (!survey || survey.status !== SurveyStatus.DRAFT)
-      throw new Error("Survey not editable");
-    return prisma.question.create({
-      data: { ...questionData, surveyId },
-    });
-  },
+addQuestion: async (surveyId: string, questionData: any) => {
+  const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+  
+  if (!survey || survey.status !== SurveyStatus.DRAFT) {
+    throw new Error("Survey not editable");
+  }
+
+  const { options, ...questionBody } = questionData;
+
+  return prisma.question.create({
+    data: {
+      ...questionBody,
+      surveyId,
+      options: options && options.length > 0 ? {
+        create: options.map((opt: any) => ({
+          label: opt.label,
+          order: opt.order
+        }))
+      } : undefined
+    },
+    include: {
+      options: true
+    }
+  });
+},
 
   /**
    * Update question (only if survey draft)
