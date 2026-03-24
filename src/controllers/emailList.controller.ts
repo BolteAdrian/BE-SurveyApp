@@ -102,12 +102,15 @@ export const emailListController = {
    */
   deleteList: async (req: Request, res: Response) => {
     const { id } = req.params;
-
     try {
       await emailListService.deleteList(id as string);
-      res.status(204).send(); // No content, deleted successfully
-    } catch (err) {
-      console.error(err);
+      res.status(204).send();
+    } catch (err: any) {
+      if (err.message === "HAS_ASSOCIATED_DATA") {
+        return res.status(400).json({
+          message: req.t("EMAIL_LIST.DELETE_FAILED_HAS_DATA"),
+        });
+      }
       res.status(400).json({ message: req.t("EMAIL_LIST.DELETE_FAILED") });
     }
   },
@@ -140,7 +143,12 @@ export const emailListController = {
       const { contactId } = req.params;
       await emailListService.deleteContact(contactId as string);
       res.status(204).send();
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message === "HAS_ASSOCIATED_DATA") {
+        return res.status(400).json({
+          message: req.t("EMAIL_LIST.CONTACT_DELETE_FAILED_HAS_DATA"),
+        });
+      }
       res
         .status(400)
         .json({ message: req.t("EMAIL_LIST.CONTACT_DELETE_FAILED") });

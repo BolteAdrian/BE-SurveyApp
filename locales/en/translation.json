@@ -51,6 +51,8 @@
     "IMPORT_FAILED": "Import failed",
     "DELETE_FAILED": "Failed to delete email list",
     "ADD_FAILED": "Failed to add contact",
-    "CONTACT_DELETE_FAILED": "Failed to delete contact"
+    "CONTACT_DELETE_FAILED": "Failed to delete contact",
+    "DELETE_FAILED_HAS_DATA": "List cannot be deleted: contacts have existing survey data.",
+    "CONTACT_DELETE_FAILED_HAS_DATA": "Cannot delete contact with active invitations or responses."
   }
 }

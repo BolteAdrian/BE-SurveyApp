@@ -51,6 +51,8 @@
     "IMPORT_FAILED": "Eșec la importare",
     "DELETE_FAILED": "Eșec la ștergerea listei de email",
     "ADD_FAILED": "Eșec la adăugarea unui contact",
-    "CONTACT_DELETE_FAILED": "Eșec la ștergerea unui contact"
+    "CONTACT_DELETE_FAILED": "Eșec la ștergerea unui contact",
+    "DELETE_FAILED_HAS_DATA": "Nu se poate șterge lista deoarece conține contacte care au participat deja la sondaje.",
+    "CONTACT_DELETE_FAILED_HAS_DATA": "Acest contact nu poate fi șters deoarece are o invitație sau un răspuns activ."
   }
 }

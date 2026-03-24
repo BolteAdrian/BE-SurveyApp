@@ -83,7 +83,6 @@ export const emailListService = {
     emailListId: string,
     contacts: { email: string; name?: string }[],
   ) => {
-    // Basic email regex validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const validContacts = contacts.filter(
@@ -98,7 +97,7 @@ export const emailListService = {
         name: c.name?.trim() || null,
         emailListId,
       })),
-      skipDuplicates: true, // This covers the "Duplicate ignore" rule from specs
+      skipDuplicates: true,
     });
   },
 
@@ -115,6 +114,14 @@ export const emailListService = {
    * Delete a specific contact
    */
   deleteContact: async (contactId: string) => {
+    const hasInvitations = await prisma.invitation.findFirst({
+      where: { contactId },
+    });
+
+    if (hasInvitations) {
+      throw new Error("HAS_ASSOCIATED_DATA");
+    }
+
     return await prisma.emailContact.delete({
       where: { id: contactId },
     });
@@ -124,6 +131,18 @@ export const emailListService = {
    * Delete an entire list
    */
   deleteList: async (id: string) => {
+    const hasAssociatedData = await prisma.invitation.findFirst({
+      where: {
+        contact: {
+          emailListId: id,
+        },
+      },
+    });
+
+    if (hasAssociatedData) {
+      throw new Error("HAS_ASSOCIATED_DATA");
+    }
+
     return await prisma.emailList.delete({
       where: { id },
     });

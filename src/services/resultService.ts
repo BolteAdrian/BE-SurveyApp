@@ -77,7 +77,7 @@ export const resultService = {
         id: q.id,
         title: q.title,
         type: q.type,
-        totalAnswers: uniqueResponders, 
+        totalAnswers: uniqueResponders,
         stats:
           q.type === QuestionType.CHOICE && totalResponses > 0
             ? q.options.map((opt) => ({
@@ -154,7 +154,6 @@ export const resultService = {
     // 3. Build CSV rows
     const rows = responses.map((resp) => {
       const row: any = {
-        responseId: resp.id,
         email: resp.invitation.contact.email,
         name: resp.invitation.contact.name || "",
         submittedAt: resp.submittedAt.toISOString(),
@@ -183,7 +182,6 @@ export const resultService = {
 
     // 4. Convert to CSV
     const fields = [
-      "responseId",
       "email",
       "name",
       "submittedAt",

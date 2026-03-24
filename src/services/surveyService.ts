@@ -1,7 +1,8 @@
 import prisma from "../db/prisma";
+import { IOption } from "../entities/IOption";
 import { IQuestionWithOptions } from "../entities/IQuestion";
 import { ISurvey } from "../entities/ISurvey";
-import { SurveyStatus } from "../utils/constants";
+import { QuestionType, SurveyStatus } from "../utils/constants";
 
 /**
  * Service for handling Surveys.
@@ -102,39 +103,39 @@ export const surveyService = {
     });
   },
 
-/**
- * Get all surveys with counts for questions, total invitations, and submissions
- */
-getSurveys: async (status?: SurveyStatus) => {
-  const where = status ? { status } : {};
+  /**
+   * Get all surveys with counts for questions, total invitations, and submissions
+   */
+  getSurveys: async (status?: SurveyStatus) => {
+    const where = status ? { status } : {};
 
-  const surveys = await prisma.survey.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: {
-        select: {
-          questions: true,
-          invitations: true, 
+    const surveys = await prisma.survey.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            questions: true,
+            invitations: true,
+          },
+        },
+        invitations: {
+          where: {
+            submittedAt: { not: null },
+          },
+          select: {
+            id: true,
+          },
         },
       },
-      invitations: {
-        where: {
-          submittedAt: { not: null }
-        },
-        select: {
-          id: true
-        }
-      }
-    },
-  });
+    });
 
-  return surveys.map(s => ({
-    ...s,
-    submittedCount: s.invitations.length,
-    invitations: undefined 
-  }));
-},
+    return surveys.map((s) => ({
+      ...s,
+      submittedCount: s.invitations.length,
+      invitations: undefined,
+    }));
+  },
   /**
    * Get a single survey by id, with questions
    */
@@ -215,31 +216,34 @@ getSurveys: async (status?: SurveyStatus) => {
   /**
    * Add question to a survey (only if draft)
    */
-addQuestion: async (surveyId: string, questionData: any) => {
-  const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
-  
-  if (!survey || survey.status !== SurveyStatus.DRAFT) {
-    throw new Error("Survey not editable");
-  }
+  addQuestion: async (surveyId: string, questionData: any) => {
+    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
 
-  const { options, ...questionBody } = questionData;
-
-  return prisma.question.create({
-    data: {
-      ...questionBody,
-      surveyId,
-      options: options && options.length > 0 ? {
-        create: options.map((opt: any) => ({
-          label: opt.label,
-          order: opt.order
-        }))
-      } : undefined
-    },
-    include: {
-      options: true
+    if (!survey || survey.status !== SurveyStatus.DRAFT) {
+      throw new Error("Survey not editable");
     }
-  });
-},
+
+    const { options, ...questionBody } = questionData;
+
+    return prisma.question.create({
+      data: {
+        ...questionBody,
+        surveyId,
+        options:
+          options && options.length > 0
+            ? {
+                create: options.map((opt: IOption) => ({
+                  label: opt.label,
+                  order: opt.order,
+                })),
+              }
+            : undefined,
+      },
+      include: {
+        options: true,
+      },
+    });
+  },
 
   /**
    * Update question (only if survey draft)
@@ -260,7 +264,7 @@ addQuestion: async (surveyId: string, questionData: any) => {
         maxLength: data.maxLength,
         order: data.order,
         options:
-          data.type === "CHOICE"
+          data.type === QuestionType.CHOICE
             ? {
                 deleteMany: {},
                 create: data.options,
