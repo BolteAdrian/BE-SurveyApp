@@ -59,6 +59,7 @@ export const resultService = {
         options: {
           include: { _count: { select: { answerChoices: true } } },
         },
+        answersChoice: { select: { responseId: true } },
         _count: { select: { answersChoice: true, answersText: true } },
       },
       orderBy: { order: "asc" },
@@ -66,30 +67,33 @@ export const resultService = {
 
     const totalResponses = await prisma.response.count({ where: { surveyId } });
 
-    const questionsWithStats = questions.map((q) => ({
-      id: q.id,
-      title: q.title,
-      type: q.type,
-      totalAnswers:
+    const questionsWithStats = questions.map((q) => {
+      const uniqueResponders =
         q.type === QuestionType.CHOICE
-          ? q._count.answersChoice
-          : q._count.answersText,
-      stats:
-        q.type === QuestionType.CHOICE && totalResponses > 0
-          ? q.options.map((opt) => ({
-              optionId: opt.id,
-              label: opt.label,
-              count: opt._count.answerChoices,
-              percent:
-                totalResponses > 0
-                  ? Math.round(
-                      (opt._count.answerChoices / totalResponses) * 100,
-                    )
-                  : 0,
-            }))
-          : undefined,
-    }));
+          ? new Set(q.answersChoice.map((a) => a.responseId)).size
+          : q._count.answersText;
 
+      return {
+        id: q.id,
+        title: q.title,
+        type: q.type,
+        totalAnswers: uniqueResponders, 
+        stats:
+          q.type === QuestionType.CHOICE && totalResponses > 0
+            ? q.options.map((opt) => ({
+                optionId: opt.id,
+                label: opt.label,
+                count: opt._count.answerChoices,
+                percent:
+                  totalResponses > 0
+                    ? Math.round(
+                        (opt._count.answerChoices / totalResponses) * 100,
+                      )
+                    : 0,
+              }))
+            : undefined,
+      };
+    });
     return { survey, questions: questionsWithStats };
   },
 
@@ -115,6 +119,11 @@ export const resultService = {
       },
       include: {
         question: true,
+        response: {
+          select: {
+            submittedAt: true,
+          },
+        },
       },
       skip: (page - 1) * 20,
       take: 20,

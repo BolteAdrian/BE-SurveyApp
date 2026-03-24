@@ -127,7 +127,7 @@ export const emailListController = {
       );
       res.status(201).json(contact);
     } catch (err) {
-      res.status(400).json({ message: req.t("EMAIL_CONTACT.ADD_FAILED") });
+      res.status(400).json({ message: req.t("EMAIL_LIST.ADD_FAILED") });
     }
   },
 
@@ -137,13 +137,13 @@ export const emailListController = {
    */
   deleteContact: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      await emailListService.deleteContact(id as string);
+      const { contactId } = req.params;
+      await emailListService.deleteContact(contactId as string);
       res.status(204).send();
     } catch (err) {
       res
         .status(400)
-        .json({ message: req.t("EMAIL_CONTACT.CONTACT_DELETE_FAILED") });
+        .json({ message: req.t("EMAIL_LIST.CONTACT_DELETE_FAILED") });
     }
   },
 };
