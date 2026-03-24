@@ -31,7 +31,8 @@ const dbHost = process.env.DB_HOST || "localhost";
 const dbPort = Number(process.env.DB_PORT) || 5432;
 const dbName = process.env.DB_NAME || "surveyapp";
 
-const dbUrl = `postgresql://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
+//const dbUrl = `postgresql://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
+const dbUrl = process.env.DATABASE_URL || "";
 const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
 const backendURL = process.env.BACKEND_URL || "http://localhost:4000";
 
