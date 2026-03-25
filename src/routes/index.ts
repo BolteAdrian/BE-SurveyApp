@@ -68,6 +68,11 @@ router.get(
   invitationController.previewInvitations,
 );
 
+router.post(
+  "/api/surveys/:id/invitations/quick-link",
+  invitationController.generateQuickLink,
+);
+
 /** Admin — Results */
 router.get(
   "/api/surveys/:id/results/summary",
@@ -94,11 +99,26 @@ router.get(
 router.get("/api/email-lists/", authenticate, emailListController.getLists);
 router.get("/api/email-lists/:id", authenticate, emailListController.getList);
 router.post("/api/email-lists/", authenticate, emailListController.createList);
-router.post("/api/email-lists/:listId/import", authenticate, emailListController.importCSV);
-router.delete("/api/email-lists/:id", authenticate, emailListController.deleteList);
-router.post("/api/email-lists/:id/contacts", authenticate, emailListController.addContact);
-router.delete("/api/email-lists/:id/contacts/:contactId", authenticate, emailListController.deleteContact);
-
+router.post(
+  "/api/email-lists/:listId/import",
+  authenticate,
+  emailListController.importCSV,
+);
+router.delete(
+  "/api/email-lists/:id",
+  authenticate,
+  emailListController.deleteList,
+);
+router.post(
+  "/api/email-lists/:id/contacts",
+  authenticate,
+  emailListController.addContact,
+);
+router.delete(
+  "/api/email-lists/:id/contacts/:contactId",
+  authenticate,
+  emailListController.deleteContact,
+);
 
 /** Public */
 router.get("/s/:slug", publicController.getSurvey);

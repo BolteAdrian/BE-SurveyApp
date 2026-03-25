@@ -127,4 +127,49 @@ export const invitationService = {
 
     return { newEmails, skipped };
   },
+
+  /**
+   * Generates a unique test contact and invitation link every time.
+   * Perfect for filling the survey multiple times to see charts update.
+   */
+  generateQuickLink: async (surveyId: string) => {
+    // 1. Ensure the survey exists
+    const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+    if (!survey) throw new Error("Survey not found");
+
+    // 2. Find a list to attach the contact to
+    const firstList = await prisma.emailList.findFirst();
+    if (!firstList)
+      throw new Error("Please create at least one Email List first.");
+
+    // 3. Create a UNIQUE Test Contact using a timestamp
+    // This ensures we never hit a "Unique constraint" error on Email
+    const uniqueSuffix = Date.now(); // ex: 1711384567
+    const testContact = await prisma.emailContact.create({
+      data: {
+        email: `test-${uniqueSuffix}@internal.app`,
+        name: `User ${uniqueSuffix.toString().slice(-4)}`,
+        emailListId: firstList.id,
+      },
+    });
+
+    // 4. Generate tokens
+    const rawToken = generateToken();
+    const tokenHash = hashToken(rawToken);
+
+    // 5. Create the invitation for this SPECIFIC new contact
+    await prisma.invitation.create({
+      data: {
+        surveyId,
+        contactId: testContact.id,
+        tokenHash,
+        sentAt: new Date(),
+      },
+    });
+
+    // 6. Return the full URL
+    return {
+      inviteUrl: `${config.frontendURL}/s/${survey.slug}?t=${rawToken}`,
+    };
+  },
 };
