@@ -11,25 +11,47 @@ export const invitationService = {
    * Send invitations to contacts list
    */
   sendInvitations: async (surveyId: string, listId: string) => {
-    // 1. Validation
+    // 1. Validation: Ensure the survey exists and is in PUBLISHED state
     const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
     if (!survey || survey.status !== "PUBLISHED") {
       throw new Error("Invitations can only be sent for PUBLISHED surveys.");
     }
 
-    // 2. Get all contacts from the list
+    // 2. Fetch all contacts associated with the provided email list
     const contacts = await prisma.emailContact.findMany({
       where: { emailListId: listId },
     });
 
-    // 3. Prepare data
-    const invitationsToCreate = [];
-    const mapping: Record<string, string> = {}; // contactId -> rawToken
+    // 3. ANTI-DUPLICATION RULE: Find contacts who already have an invitation for this survey
+    const existingInvitations = await prisma.invitation.findMany({
+      where: {
+        surveyId,
+        contactId: { in: contacts.map((c) => c.id) },
+      },
+      select: { contactId: true },
+    });
 
-    for (const contact of contacts) {
+    // Create a Set of IDs for O(1) lookup efficiency
+    const existingContactIds = new Set(
+      existingInvitations.map((i) => i.contactId),
+    );
+
+    // 4. FILTERING: Identify only the contacts that haven't been invited yet
+    const newContacts = contacts.filter((c) => !existingContactIds.has(c.id));
+
+    // If everyone in the list was already invited, stop here
+    if (newContacts.length === 0) {
+      return { sent: 0, skipped: contacts.length };
+    }
+
+    const invitationsToCreate = [];
+    const mapping: Record<string, string> = {}; // Temporarily store raw tokens: contactId -> rawToken
+
+    // 5. PREPARATION: Generate unique tokens and hashes for each new invitation
+    for (const contact of newContacts) {
       const rawToken = generateToken();
       const tokenHash = hashToken(rawToken);
-      
+
       mapping[contact.id] = rawToken;
 
       invitationsToCreate.push({
@@ -40,37 +62,27 @@ export const invitationService = {
       });
     }
 
-    // 4. Bulk insert into Database
+    // 6. DATABASE INSERT: Save the new invitations to the DB
     await prisma.invitation.createMany({
       data: invitationsToCreate,
-      skipDuplicates: true,
     });
 
-    // 5. 
-    const newlyCreated = await prisma.invitation.findMany({
-      where: {
-        surveyId,
-        contactId: { in: contacts.map(c => c.id) },
-        submittedAt: null, 
-      },
-      include: { contact: true }
-    });
-
-    // 6. Send Emails
-    const mailPromises = newlyCreated.map((inv) => {
-      const rawToken = mapping[inv.contactId];
+    // 7. EMAIL DELIVERY: Send emails ONLY to the newly created invitees
+    const mailPromises = newContacts.map((contact) => {
+      const rawToken = mapping[contact.id];
       const inviteUrl = `${config.frontendURL}/s/${survey.slug}?t=${rawToken}`;
-      
-      return mailService.sendInvitation(
-        inv.contact.email, 
-        survey.title, 
-        inviteUrl
-      );
+
+      return mailService.sendInvitation(contact.email, survey.title, inviteUrl);
     });
 
+    // Execute all email sending tasks in parallel
     await Promise.all(mailPromises);
 
-    return { sent: newlyCreated.length };
+    // Return the counts for the UI preview/notification
+    return {
+      sent: newContacts.length,
+      skipped: existingContactIds.size,
+    };
   },
 
   /**
